@@ -11,7 +11,7 @@ export default function PromoBar() {
     // Bar will show again on page reload - no localStorage persistence
   };
 
-  const phoneNumber = '+91 9255000022';
+  const phoneNumber = '+91 8410750000';
   const phoneLink = `tel:${phoneNumber.replace(/\s/g, '')}`;
 
   return (
@@ -22,7 +22,7 @@ export default function PromoBar() {
       `}
     >
       {/* Main Bar with Gradient Background */}
-      <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg">
+      <div className="relative bg-gradient-to-r from-black via-gray-900 to-black text-white shadow-lg">
         {/* Animated background pattern for extra visual interest */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -43,7 +43,7 @@ export default function PromoBar() {
               {/* Sparkle/Star Icon for attention */}
               <div className="flex-shrink-0 animate-pulse">
                 <svg
-                  className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-200"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-white/90"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -82,7 +82,7 @@ export default function PromoBar() {
               <Link
                 href={phoneLink}
                 className="
-                  bg-white text-orange-600 
+                  bg-white text-gray-900 
                   px-3 sm:px-4 py-1.5 sm:py-2 
                   rounded-lg sm:rounded-xl
                   font-bold text-sm sm:text-base
@@ -92,6 +92,7 @@ export default function PromoBar() {
                   whitespace-nowrap
                   flex items-center space-x-1
                   border-2 border-white
+                  hover:bg-gray-100
                 "
                 aria-label={`Call ${phoneNumber}`}
               >

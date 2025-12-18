@@ -35,7 +35,7 @@ A beautiful, attention-seeking promotional bar has been added above the navbar a
 
 ### Component Location
 - **File**: `components/PromoBar.tsx`
-- **Phone Number**: `+91 9255000022` (configurable in the component)
+- **Phone Number**: `+91 8410750000` (configurable in the component)
 
 ### Pages Updated
 All main pages now include the PromoBar above the navbar:
@@ -53,7 +53,7 @@ All main pages now include the PromoBar above the navbar:
 ### To Change Phone Number
 Edit `components/PromoBar.tsx`:
 ```typescript
-const phoneNumber = '+91 9255000022'; // Change this
+const phoneNumber = '+91 8410750000'; // Change this
 ```
 
 ### To Change Message

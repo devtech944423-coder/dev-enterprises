@@ -27,7 +27,7 @@
 
 - ⚠️ **Contact Page** (`app/contact/page.tsx`):
   - Still has hardcoded email: `devtech944423@gmail.com`
-  - Still has hardcoded phone: `+91 9255000022`
+  - Still has hardcoded phone: `+91 8410750000`
   - Recommendation: Move to environment variables or a config file
 
 ### 3. Unused Files Identified
