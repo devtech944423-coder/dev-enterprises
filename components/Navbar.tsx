@@ -22,7 +22,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 h-full py-2">
           <img
-  src="/images/logo.png"
+  src="/images/logo-v2.png"
   alt="Dev Tech Enterprises"
               className="h-full max-h-12 w-auto object-contain"
 />
