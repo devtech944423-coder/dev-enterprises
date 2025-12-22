@@ -2,6 +2,10 @@ import PromoBar from '@/components/PromoBar';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
+// OPTIMIZATION: Enable ISR (Incremental Static Regeneration) to reduce server CPU load
+// This page is static and doesn't need real-time data, so we can cache it
+export const revalidate = 3600; // Revalidate every hour (ISR)
+
 const values = [
   {
     title: 'Quality First',

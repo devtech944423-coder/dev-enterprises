@@ -8,11 +8,37 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Simple in-memory rate limiter (for production, use Redis)
+// OPTIMIZED: In-memory rate limiter with automatic cleanup
+// CRITICAL FIX: Removed setInterval to prevent CPU usage
+// Instead, cleanup happens during rate limit checks (lazy cleanup)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const MAX_MAP_SIZE = 10000; // Prevent memory leak
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 function checkRateLimit(ip: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
+  
+  // Lazy cleanup: Only clean up periodically during checks (not with setInterval)
+  if (now - lastCleanup > CLEANUP_INTERVAL) {
+    let cleaned = 0;
+    for (const [mapIp, record] of rateLimitMap.entries()) {
+      if (now > record.resetTime) {
+        rateLimitMap.delete(mapIp);
+        cleaned++;
+      }
+    }
+    lastCleanup = now;
+    
+    // If map is too large, remove oldest entries
+    if (rateLimitMap.size > MAX_MAP_SIZE) {
+      const entries = Array.from(rateLimitMap.entries());
+      entries.sort((a, b) => a[1].resetTime - b[1].resetTime);
+      const toRemove = entries.slice(0, Math.floor(MAX_MAP_SIZE * 0.2));
+      toRemove.forEach(([mapIp]) => rateLimitMap.delete(mapIp));
+    }
+  }
+  
   const record = rateLimitMap.get(ip);
   
   if (!record || now > record.resetTime) {
@@ -27,16 +53,6 @@ function checkRateLimit(ip: string, limit: number, windowMs: number): boolean {
   record.count++;
   return true;
 }
-
-// Clean up old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, record] of rateLimitMap.entries()) {
-    if (now > record.resetTime) {
-      rateLimitMap.delete(ip);
-    }
-  }
-}, 60000); // Clean up every minute
 
 export function middleware(request: NextRequest) {
   // Get IP from headers (NextRequest doesn't have .ip property)

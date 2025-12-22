@@ -15,6 +15,7 @@ import {
 import { db } from './config';
 import { Category, Product } from './products';
 import { getAllCategories, getAllProducts } from './products';
+import { cache, CACHE_KEYS } from './cache';
 
 /**
  * Set up real-time listener for categories
@@ -36,6 +37,8 @@ export function subscribeToCategories(
           // Process categories the same way as getAllCategories does
           // For now, we'll fetch using the existing function and refresh
           // This ensures validation and filtering logic is reused
+          // Invalidate cache to ensure fresh data
+          cache.invalidate(CACHE_KEYS.allCategories);
           const categories = await getAllCategories();
           onCategoriesUpdate(categories);
         } catch (error: any) {
@@ -105,55 +108,60 @@ export function subscribeToAllProducts(
             
             // Only refresh if there are actual changes (not initial snapshot)
             if (hasDeletions || hasAdditions || hasModifications) {
-              const deletionCount = changes.filter(c => c.type === 'removed').length;
+              // CRITICAL FIX: Debounce rapid changes to prevent CPU overload
+              // Instead of calling getAllProducts() immediately, batch changes
+              // This prevents multiple expensive queries when multiple collections update
+              
               const isCollectionEmpty = snapshot.size === 0;
               
-              // Use different delays based on change type:
-              // - Modifications (like image updates): shorter delay for faster updates
-              // - Deletions: longer delay to ensure Firestore has processed
-              // - Additions: medium delay
-              let delay = 200; // Default delay
-              if (hasModifications && !hasDeletions) {
-                // For modifications only (like image changes), use shorter delay
-                delay = 100;
-              } else if (hasDeletions) {
-                // For deletions, use longer delay to ensure Firestore has processed
-                delay = 200;
+              // For modifications only, skip full refresh (too expensive)
+              // Only refresh on actual additions/deletions
+              if (hasModifications && !hasDeletions && !hasAdditions) {
+                // Skip expensive getAllProducts() for modifications
+                // Client can handle individual product updates if needed
+                return;
+              }
+              
+              // Debounce: Wait longer to batch multiple rapid changes
+              // This prevents CPU spikes when multiple collections update simultaneously
+              let delay = 1000; // Increased from 200ms to 1s to batch changes
+              if (hasDeletions) {
+                delay = 1500; // Longer delay for deletions to ensure Firestore has processed
               }
               
               await new Promise(resolve => setTimeout(resolve, delay));
               
+              // Check if still active after delay (component might have unmounted)
+              if (!isActive) return;
+              
               try {
-                // Fetch all products again (using existing logic)
+                // OPTIMIZATION: Only fetch all products if we really need to
+                // For single collection changes, we could update incrementally
+                // But for now, we'll keep it simple but debounced
+                // Invalidate cache before fetching to ensure fresh data
+                cache.invalidate(CACHE_KEYS.allProducts);
                 const allProducts = await getAllProducts();
-                onProductsUpdate(allProducts);
+                if (isActive) {
+                  onProductsUpdate(allProducts);
+                }
                 
-                // Always refresh categories when products are deleted
-                // This ensures empty categories are removed from the category container in real-time
-                // We refresh on deletions (not just when empty) to keep category counts accurate
-                if (hasDeletions && onCategoriesRefresh) {
-                  // Add delay before refreshing categories to ensure Firestore has fully processed
-                  // the deletion and the collection validation will see the updated state
-                  // Use longer delay if collection became empty to ensure it's fully processed
-                  const delay = isCollectionEmpty ? 500 : 300;
-                  await new Promise(resolve => setTimeout(resolve, delay));
+                // Only refresh categories on deletions (not on every change)
+                if (hasDeletions && onCategoriesRefresh && isActive) {
+                  const categoryDelay = isCollectionEmpty ? 1000 : 800;
+                  await new Promise(resolve => setTimeout(resolve, categoryDelay));
+                  
+                  if (!isActive) return;
                   
                   try {
+                    // Invalidate cache before refresh
+                    cache.invalidate(CACHE_KEYS.allCategories);
                     await onCategoriesRefresh();
                   } catch (categoryError: any) {
-                    // Retry once after a longer delay if collection is empty
-                    if (isCollectionEmpty) {
-                      await new Promise(resolve => setTimeout(resolve, 500));
-                      try {
-                        await onCategoriesRefresh();
-                      } catch (retryError: any) {
-                        // Silently fail on retry
-                      }
-                    }
+                    // Silently fail - don't retry to avoid CPU spikes
                   }
                 }
               } catch (error: any) {
-                if (onError) {
+                if (onError && isActive) {
                   onError(error);
                 }
               }
@@ -223,6 +231,8 @@ export function subscribeToProductsAndCategories(
             return;
           }
           try {
+            // Invalidate cache before refresh
+            cache.invalidate(CACHE_KEYS.allCategories);
             const updatedCategories = await getAllCategories();
             if (isActive) {
               currentCategories = updatedCategories;
@@ -249,6 +259,7 @@ export function subscribeToProductsAndCategories(
       setupProductListeners(categories);
       
       // Also refresh products immediately to catch any changes
+      cache.invalidate(CACHE_KEYS.allProducts);
       getAllProducts()
         .then((products) => {
           if (isActive) {
@@ -271,6 +282,7 @@ export function subscribeToProductsAndCategories(
   allUnsubscribes.push(categoriesUnsubscribe);
   
   // Set up initial categories and product listeners
+  // Don't invalidate cache on initial load - use cache if available
   getAllCategories()
     .then((initialCategories) => {
       if (!isActive) return;
@@ -281,7 +293,7 @@ export function subscribeToProductsAndCategories(
       // Set up initial product listeners
       setupProductListeners(initialCategories);
       
-      // Also fetch initial products
+      // Also fetch initial products (will use cache if available)
       return getAllProducts();
     })
     .then((initialProducts) => {

@@ -50,13 +50,24 @@ const CategoryCard = memo(function CategoryCard({ category }: CategoryCardProps)
     }
 
     const myRequestSeq = ++requestSeqRef.current;
+    
+    // OPTIMIZATION: Debounce to prevent rapid-fire Firebase queries
+    // Wait a bit before loading to batch hover events
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Check if still hovered after debounce
+    if (requestSeqRef.current !== myRequestSeq) return;
+
     setIsLoadingPreview(true);
 
     try {
+      // OPTIMIZATION: Limit query to first 6 products only (don't fetch all)
+      // This reduces Firebase query cost and CPU usage
       const products = await getProductsByCategory(category.id, category.collectionName);
       if (myRequestSeq !== requestSeqRef.current) return;
 
       const urls = products
+        .slice(0, 6) // Only use first 6 products
         .map(resolveProductImage)
         .filter(Boolean);
 

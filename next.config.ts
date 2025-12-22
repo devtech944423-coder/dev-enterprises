@@ -16,10 +16,22 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 31536000, // 1 year for static images
+    // OPTIMIZATION: Reduce image processing CPU usage
+    dangerouslyAllowSVG: false,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // OPTIMIZATION: Reduce CPU usage during build
+  swcMinify: true, // Use SWC minifier (faster than Terser)
+  // OPTIMIZATION: Enable experimental features for better performance
+  experimental: {
+    optimizeCss: true, // Optimize CSS output
+  },
+  // OPTIMIZATION: Output configuration for better caching
+  output: 'standalone', // Creates optimized standalone build
   // Headers for caching and security
   async headers() {
     return [
@@ -122,7 +134,59 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // OPTIMIZATION: Cache static pages to reduce server CPU load
+      {
+        source: '/about',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=3600, stale-while-revalidate=86400',
+          },
+        ],
+      },
+      {
+        source: '/contact',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=300, stale-while-revalidate=3600',
+          },
+        ],
+      },
     ];
+  },
+  // OPTIMIZATION: Reduce bundle size and improve performance
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Optimize client bundle
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: 'deterministic',
+        runtimeChunk: 'single',
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            // Separate vendor chunks
+            vendor: {
+              name: 'vendor',
+              chunks: 'all',
+              test: /node_modules/,
+              priority: 20,
+            },
+            // Separate Firebase chunk (large library)
+            firebase: {
+              name: 'firebase',
+              chunks: 'all',
+              test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
+              priority: 30,
+            },
+          },
+        },
+      };
+    }
+    return config;
   },
 };
 

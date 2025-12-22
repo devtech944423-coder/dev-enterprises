@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { collectionNamesToCheck, createCategoryFromCollectionName } from './categories-config';
+import { cache, CACHE_KEYS } from './cache';
 
 export interface Product {
   id: string;
@@ -54,7 +55,11 @@ function isPermissionError(error: any): boolean {
  */
 export async function getAllProducts(): Promise<Product[]> {
   try {
-
+    // OPTIMIZATION: Check cache first to prevent expensive Firebase queries
+    const cached = cache.get<Product[]>(CACHE_KEYS.allProducts);
+    if (cached) {
+      return cached;
+    }
     
     // First, get all categories to know which collections to fetch from
     const categories = await getAllCategories();
@@ -182,6 +187,9 @@ export async function getAllProducts(): Promise<Product[]> {
     }
     
 
+    // OPTIMIZATION: Cache results for 3 minutes to reduce CPU usage
+    // Cache is invalidated by real-time listeners when data changes
+    cache.set(CACHE_KEYS.allProducts, allProducts, 3 * 60 * 1000);
     
     return allProducts;
   } catch (error: any) {
@@ -202,6 +210,13 @@ export async function getProductsByCategory(categoryId: string, categoryCollecti
   try {
     if (categoryId === 'all') {
       return await getAllProducts();
+    }
+    
+    // OPTIMIZATION: Check cache first
+    const cacheKey = CACHE_KEYS.productsByCategory(categoryId);
+    const cached = cache.get<Product[]>(cacheKey);
+    if (cached) {
+      return cached;
     }
     
     // Use collectionName if provided, otherwise default to 'products' collection with categoryId filter
@@ -237,7 +252,8 @@ export async function getProductsByCategory(categoryId: string, categoryCollecti
         } as Product);
       });
       
-
+      // Cache results for 3 minutes
+      cache.set(cacheKey, products, 3 * 60 * 1000);
       
       if (products.length === 0) {
 
@@ -273,6 +289,9 @@ export async function getProductsByCategory(categoryId: string, categoryCollecti
             const bDate = b.createdAt?.toMillis?.() || 0;
             return bDate - aDate;
           });
+          
+          // Cache results
+          cache.set(cacheKey, products, 3 * 60 * 1000);
           
           if (products.length === 0) {
 
@@ -582,7 +601,11 @@ function getCategoryDefaults(collectionName: string): { gradient: string } {
  */
 export async function getAllCategories(): Promise<Category[]> {
   try {
-
+    // OPTIMIZATION: Check cache first
+    const cached = cache.get<Category[]>(CACHE_KEYS.allCategories);
+    if (cached) {
+      return cached;
+    }
     
     // Method 1: Try to get categories directly from _categories collection (automatic from database)
 
@@ -591,6 +614,8 @@ export async function getAllCategories(): Promise<Category[]> {
 
     
     if (firestoreCategories.length > 0) {
+      // Cache categories for 5 minutes (they change less frequently)
+      cache.set(CACHE_KEYS.allCategories, firestoreCategories, 5 * 60 * 1000);
       return firestoreCategories;
     }
     
@@ -649,6 +674,11 @@ export async function getAllCategories(): Promise<Category[]> {
 
 
 
+    }
+    
+    // Cache even if empty to prevent repeated queries
+    if (detectedCategories.length > 0) {
+      cache.set(CACHE_KEYS.allCategories, detectedCategories, 5 * 60 * 1000);
     }
     
     return detectedCategories;
