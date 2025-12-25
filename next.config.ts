@@ -24,12 +24,12 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  // OPTIMIZATION: Reduce CPU usage during build
-  swcMinify: true, // Use SWC minifier (faster than Terser)
   // OPTIMIZATION: Enable experimental features for better performance
   experimental: {
     optimizeCss: true, // Optimize CSS output
   },
+  // Turbopack configuration (Next.js 16 uses Turbopack by default)
+  turbopack: {},
   // OPTIMIZATION: Output configuration for better caching
   output: 'standalone', // Creates optimized standalone build
   // Headers for caching and security
@@ -154,39 +154,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  // OPTIMIZATION: Reduce bundle size and improve performance
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Optimize client bundle
-      config.optimization = {
-        ...config.optimization,
-        moduleIds: 'deterministic',
-        runtimeChunk: 'single',
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Separate vendor chunks
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20,
-            },
-            // Separate Firebase chunk (large library)
-            firebase: {
-              name: 'firebase',
-              chunks: 'all',
-              test: /[\\/]node_modules[\\/](firebase|@firebase)[\\/]/,
-              priority: 30,
-            },
-          },
-        },
-      };
-    }
-    return config;
   },
 };
 

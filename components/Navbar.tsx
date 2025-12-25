@@ -21,12 +21,12 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 h-full py-2">
-          <img
-  src="/images/logo-v2.png"
-  alt="Dev Tech Enterprises"
+            <img
+              src="/images/logo-v2.png"
+              alt="DEVTECH ENTERPRISES"
               className="h-full max-h-12 w-auto object-contain"
-/>
-</Link>
+            />
+          </Link>
 
 
           {/* Desktop Navigation */}
